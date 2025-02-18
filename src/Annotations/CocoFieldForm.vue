@@ -2,6 +2,9 @@
     <div class="flex flex-col items-center gap-2">
         <div class="flex flex-row justify-between w-full items-center">
             <div>Field: {{ field.id }}</div>
+            <button class="btn btn-error btn-sm" @click="emit('delete', field.id)">
+                Delete
+            </button>
         </div>
         <div class="flex w-full join">
             <label class="select">
@@ -62,6 +65,7 @@ defineProps<Props>()
 const emit = defineEmits<{
     (e: 'update-class', fieldId: string, classIndex:number): void
     (e: 'update-coord', fieldId: string, field: keyof BBox, value: number): void
+    (e: 'delete', fieldId: string): void
 }>()
 
 

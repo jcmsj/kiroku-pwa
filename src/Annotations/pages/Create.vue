@@ -19,8 +19,8 @@
           <ms-save />
           Save</button>
       </div>
-      <CocoFieldForm v-if="activeField" :field="activeField" :classes @update-class="updateFieldClass"
-        @update-coord="updateFieldCoord" :classes-colors="classColors" />
+      <CocoFieldForm v-if="activeField" :field="activeField" :classes="classes" @update-class="updateFieldClass"
+        @update-coord="updateFieldCoord" @delete="deleteField" :classes-colors="classColors" />
       <template v-else>
         <div class="flex flex-col gap-2 w-full">
           Select a field to edit
@@ -80,6 +80,11 @@ function updateFieldCoord(id: string, field: string, value: number) {
   if (index !== -1) {
     bboxes.value[index] = { ...bboxes.value[index], [field]: value };
   }
+}
+
+function deleteField(id: string) {
+  bboxes.value = bboxes.value.filter(f => f.id !== id);
+  activeFieldId.value = undefined;
 }
 
 const detectStatus = ref<'idle' | 'processing' | 'error'>('idle');
