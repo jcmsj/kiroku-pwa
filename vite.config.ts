@@ -28,7 +28,13 @@ export default defineConfig({
       compiler: 'vue3',
     }),
     tailwindcss(),
-    VitePWA({ registerType: 'autoUpdate' }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      // https://vite-pwa-org.netlify.app/guide/faq.html#missing-assets-from-sw-precache-manifest
+      workbox: {
+        maximumFileSizeToCacheInBytes: 30_000_000
+      }
+     }),
     // Need to polyfill buffer for use by @jimp/wasm-webp
     nodePolyfills({ include: ["buffer"] }),
     viteStaticCopy({
