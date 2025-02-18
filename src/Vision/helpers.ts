@@ -99,17 +99,32 @@ export function getIou(ax: number, ay: number, aw: number, ah: number, bx: numbe
 
 export async function load(model_url: string, wasm_path: string) {
     ort.env.wasm.wasmPaths = wasm_path;
-    const bytes = await fetch(model_url, {
-        mode: 'cors',
-    })
-        .then((response) => response.arrayBuffer())
-        .catch(console.log);
-    const session = await ort.InferenceSession.create(bytes, {
-        executionProviders: ["webgpu","wasm"],
-        intraOpNumThreads: 2,
-    }).catch(console.log);
-
-    return session;
+    
+    // Try to get the model from cache first
+    try {
+        const modelCache = await caches.open('model-cache');
+        let modelResponse = await modelCache.match(model_url);
+        
+        if (!modelResponse) {
+            // If not in cache, fetch and store
+            modelResponse = await fetch(model_url, {
+                mode: 'cors'
+            });
+            // Clone the response before caching because response body can only be used once
+            await modelCache.put(model_url, modelResponse.clone());
+        }
+        
+        const bytes = await modelResponse.arrayBuffer();
+        const session = await ort.InferenceSession.create(bytes, {
+            executionProviders: ["webgpu","wasm"],
+            intraOpNumThreads: 2,
+        });
+        
+        return session;
+    } catch (error) {
+        console.error('Error loading model:', error);
+        throw error;
+    }
 }
 
 export const loadImage = (url: string): Promise<HTMLImageElement> => {
