@@ -8,7 +8,19 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
-    MaterialSymbolsCode: typeof import('~icons/material-symbols/code')['default']
-    MsCode: typeof import('~icons/material-symbols/code')['default']
+    MsAdd: typeof import('~icons/material-symbols/add')['default']
+    MsClose: typeof import('~icons/material-symbols/close')['default']
+    MsCog: typeof import('~icons/material-symbols/cog')['default']
+    MsConfigCog: typeof import('~icons/material-symbols/config-cog')['default']
+    MsDelete: typeof import('~icons/material-symbols/delete')['default']
+    MsEdit: typeof import('~icons/material-symbols/edit')['default']
+    MsSave: typeof import('~icons/material-symbols/save')['default']
+    MsSearch: typeof import('~icons/material-symbols/search')['default']
+    MsSettings: typeof import('~icons/material-symbols/settings')['default']
+    MsUpload: typeof import('~icons/material-symbols/upload')['default']
+    NotificationArea: typeof import('./src/components/NotificationArea.vue')['default']
+    ResizeHandle: typeof import('./src/components/ResizeHandle.vue')['default']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
   }
 }

@@ -1,22 +1,22 @@
 <template>
-  <div class="p-2">
-    <p class="text-3xl">
-      <ms-code class="inline"></ms-code>
-      <a class="link" href="https://daisyui.com/" target="_blank">
-        DaisyUI v5
-      </a>
-      + 
-      <a class="link" href="https://icon-sets.iconify.design/material-symbols/">
-        Iconify/material-symbols
-      </a>
-      + 
-      <a class="link" href="https://vuejs.org/guide/">
-        Vue starter
-      </a>
-      <ms-code class="inline"></ms-code>
-    </p>
-  </div>
+  <DefaultLayout @open-coco-dialog="cocoDialog?.showModal()">
+    <router-view />
+    <CocoDialog ref="cocoDialog" />
+  </DefaultLayout>
 </template>
-<script setup lang="ts">
 
+<script setup lang="ts">
+import { ref } from "vue";
+import DefaultLayout from "./layout/default.vue";
+import CocoDialog from "./Coco/CocoDialog.vue";
+
+const cocoDialog = ref<InstanceType<typeof CocoDialog>>();
 </script>
+
+<style>
+:root {
+  --resize-handle-color: var(--color-primary);
+  --bbox-border: 2px solid var(--color-base-200);
+  --bbox-border-active: 2px solid var(--color-accent);
+}
+</style>
