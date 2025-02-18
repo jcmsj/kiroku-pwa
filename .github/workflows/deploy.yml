@@ -20,6 +20,10 @@ concurrency:
   group: 'pages'
   cancel-in-progress: true
 
+env: 
+# see .env.example for more details
+  VITE_WASM_PATH: ${{ vars.VITE_WASM_PATH }}
+  VITE_YOLO_MODEL_URL: ${{ vars.VITE_YOLO_MODEL_URL }}
 jobs:
   # Single deploy job since we're just deploying
   deploy:
