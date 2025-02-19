@@ -14,22 +14,22 @@
         border: bbox.id === highlightedBoxId ? 'var(--bbox-border-active)' : 'var(--bbox-border)',
       }" role="presentation" @click.stop="onFocusBbox(bbox.id)"
         @mousedown.stop="(e) => mode === EditMode.none && startMove(bbox, e.pageX, e.pageY)" @mouseup="reset">
-        <ResizeHandle v-for="direction in DIRECTIONS" :key="direction" :direction :bbox
-          @mousedown="(e) => mode === EditMode.none && startResize(bbox, direction, e.pageX, e.pageY)" />
+        <button v-for="direction in DIRECTIONS" :key="direction"
+          class="dragbox absolute"
+          :style="getHandleStyle(direction, bbox)"
+          tabindex="-1"
+          @mousedown.stop="(e) => mode === EditMode.none && startResize(bbox, direction, e.pageX, e.pageY)">
+        </button>
       </div>
     </template>
-    <NotificationArea v-model:model-value="notifsQueue" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { Direction, EditMode, DIRECTIONS } from '../types'
-import ResizeHandle from '../components/ResizeHandle.vue'
 import type { BboxWithId, UUID } from '../types'
 import { resizeBbox } from '../utils'
-import NotificationArea from '../components/NotificationArea.vue'
-import { notifsQueue } from '../Composables/useNotifs'
 
 interface Props {
   src: string
@@ -163,11 +163,9 @@ const onNewBbox = (e: MouseEvent) => {
   const id = crypto.randomUUID()
     .replace(/.*-/, 'newbbox-') as UUID;
 
-  const bbox = { x, y, width: 5, height: 5, id }
+  const bbox = { x, y, width: 0.1, height: 0.1, id }
   clickStart.value = { x, y }
   bboxCandidate.value = bbox
-  emit('newCrop', bbox)
-  emit('focusBbox', id)
   updateCrop(bbox)
 }
 
@@ -187,5 +185,45 @@ const startResize = (bbox: BboxWithId, direction: Direction, x: number, y: numbe
 const onFocusBbox = (id: UUID) => {
   emit('focusBbox', id)
 }
+
+// Add this new function for handle positioning
+const getHandleStyle = (direction: Direction, bbox: BboxWithId) => {
+  const width = 5
+  const height = 5
+  let top: number
+  let left: number
+
+  // Top/left calculation
+  if (direction.includes('n')) {
+    top = -height
+  } else if (direction.includes('s')) {
+    top = bbox.height - height / 2
+  } else {
+    top = bbox.height / 2 - height / 2
+  }
+
+  if (direction.includes('e')) {
+    left = bbox.width - width / 2
+  } else if (direction.includes('w')) {
+    left = -width
+  } else {
+    left = bbox.width / 2 - width / 2
+  }
+
+  return {
+    top: `${top}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    background: 'var(--resize-handle-color, red)',
+    cursor: `${direction}-resize`,
+    zIndex: 1
+  }
+}
+
 </script>
-<style></style>
+<style>
+.dragbox {
+  position: absolute;
+}
+</style>

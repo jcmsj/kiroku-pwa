@@ -60,7 +60,6 @@ interface Props {
     classes: Record<number, string>
     classesColors: Record<number, string>
 }
-
 defineProps<Props>()
 const emit = defineEmits<{
     (e: 'update-class', fieldId: string, classIndex:number): void

@@ -1,8 +1,9 @@
 <template>
   <div class="flex flex-row gap-4">
     <div class="flex-1 flex justify-center">
-      <CropComp :src :bboxes @new-crop="addField" @update-crop="updateField"
+      <CropComp :src :bboxes @new-crop="addField" @update-crop="emit('updateField', $event)"
         @focus-bbox="setActiveField" :highlighted-box-id="activeFieldId" />
+      <NotificationArea v-model:model-value="notifsQueue" />
     </div>
     <div class="w-80 flex flex-col gap-1 justify-around h-full">
       <div class="join">
@@ -26,7 +27,7 @@
           Select a field to edit
         </div>
       </template>
-      <ClassList :fields="bboxes" class="flex-1 overflow-y-scroll max-h-[50dvh]" :active-field-id="activeFieldId"
+      <ClassList :fields="bboxes" class="flex-1 overflow-y-scroll max-h-[50dvh]" :active-field-id="activeFieldId" 
         @select-field="setActiveField" />
     </div>
   </div>
@@ -40,8 +41,8 @@ import CocoFieldForm from "../CocoFieldForm.vue";
 import type { BboxWithId, CocoField, PartialCocoField } from "../../types";
 import TemplateWorker from '../../Vision/template.worker?worker';
 import { notifsQueue, updateNotif } from "../../Composables/useNotifs";
-
-defineProps<{
+import NotificationArea from '../../components/NotificationArea.vue'
+const props = defineProps<{
   src: string;
   classes: Record<number, string>;
   classColors: Record<number, string>;
@@ -49,11 +50,12 @@ defineProps<{
 const bboxes = defineModel<PartialCocoField[]>('bboxes', { required: true })
 const emit = defineEmits<{
   save: [],
+  updateField: [PartialCocoField],
 }>()
 const activeFieldId = ref<string>();
-const activeField = computed(() =>
-  bboxes.value.find(f => f.id === activeFieldId.value) ?? null
-);
+const activeField = computed(() => {
+    return bboxes.value.find(f => f.id === activeFieldId.value);
+});
 
 function setActiveField(id: string) {
   activeFieldId.value = id;
@@ -63,23 +65,14 @@ function addField(b: BboxWithId) {
   bboxes.value = [...bboxes.value, { ...b }];
 }
 
-function updateField(f: PartialCocoField) {
-  const index = bboxes.value.findIndex((field) => field.id === f.id);
-  bboxes.value = [...bboxes.value.slice(0, index), f, ...bboxes.value.slice(index + 1)];
-}
-
-function updateFieldClass(id: string, cls: number) {
-  const index = bboxes.value.findIndex(f => f.id === id);
-  if (index !== -1) {
-    bboxes.value[index] = { ...bboxes.value[index], cls };
-  }
+function updateFieldClass(id: string, cls: number) {  
+  const it = bboxes.value.find(f => f.id === id);
+  emit('updateField', { ...it, cls, bg:props.classColors[cls] });
 }
 
 function updateFieldCoord(id: string, field: string, value: number) {
-  const index = bboxes.value.findIndex(f => f.id === id);
-  if (index !== -1) {
-    bboxes.value[index] = { ...bboxes.value[index], [field]: value };
-  }
+  const it = bboxes.value.find(f => f.id === id);
+  emit('updateField', { ...it, [field]: value });
 }
 
 function deleteField(id: string) {
@@ -104,7 +97,10 @@ function detectFields(src: string) {
   worker.onmessage = (e) => {
     switch (e.data.type) {
       case 'SUCCESS':
-        bboxes.value = e.data.payload as CocoField[];
+        bboxes.value = (e.data.payload as CocoField[]).map(f => ({
+          ...f,
+          bg: props.classColors[f.cls]
+        }));
         // Update final success message
         updateNotif(notifId, { message: 'Field detection completed', 'type': 'success', timeoutMS: 5000 });
         detectStatus.value = 'idle';

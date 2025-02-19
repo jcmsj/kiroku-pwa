@@ -69,7 +69,7 @@
                         No annotations ?
                     </h2>
                     <div class="card-actions flex justify-center w-full">
-                        <button class="btn btn-primary"  onclick="upload_zone.showModal()">
+                        <button class="btn btn-primary" onclick="upload_zone.showModal()">
                             <ms-edit class="w-4 h-4" />
                             Start annotating</button>
                     </div>
@@ -78,11 +78,14 @@
         </div>
         <dialog id="crop_modal" class="modal" ref="cropModal">
             <div class="modal-box w-[100dvw] max-w-full h-[98dvh]">
+                <div class="text-lg">
+                    Image: {{ activeAnnotation?.image.name }}
+                </div>
                 <form method="dialog">
                     <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
                 </form>
-                <Create :src="activeAnnotation.url" v-if="activeAnnotation && cocoColors && classes" :bboxes="bboxes"
-                    @update:bboxes="onUpdateBboxes" :classes :class-colors="cocoColors" class="h-full w-full"
+                <Create :src="activeAnnotation.url" v-if="activeAnnotation && cocoColors && classes" v-model:bboxes="bboxes" @update-field="updateField"
+                :classes :class-colors="cocoColors" 
                     @save="saveToDisk" />
             </div>
         </dialog>
@@ -92,7 +95,8 @@
                     <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
                 </form>
                 <div class="h-full w-full">
-                    <UploadZone class="card-body" v-if="fs && project" :library :setKind="activeSet" :fs :project @refresh="setup" />
+                    <UploadZone class="card-body" v-if="fs && project" :library :setKind="activeSet" :fs :project
+                        @refresh="setup" />
                 </div>
             </div>
         </dialog>
@@ -127,7 +131,7 @@ import { type Dir, HandleKind, type FS, type Item, type Librarian } from '../../
 import { prepFS } from '../../fs/prepFS';
 import { asDir, asItem } from '../../fs/web';
 import { computedAsync } from '@vueuse/core';
-import type { CocoField, SetKind } from '../../types';
+import type { CocoField, PartialCocoField, SetKind } from '../../types';
 import Create from '../../Annotations/pages/Create.vue';
 import UploadZone from '../../Annotations/UploadZone.vue';
 import { addNotif, notifsQueue } from '../../Composables/useNotifs';
@@ -273,13 +277,6 @@ function createSetFolder(s: SetKind) {
     }
 }
 
-function onUpdateBboxes(_bboxes: CocoField[]) {
-    console.log("updating bboxes", _bboxes)
-    // readd the bg
-    _bboxes.forEach(bbox => bbox.bg = cocoColors.value![bbox.cls])
-    bboxes.value = _bboxes;
-}
-
 function saveToDisk() {
     //IMPORTANT: must convert back to cx, cy, width, height
     const text = bboxes.value.map(({ cls, x, y, width, height }) => `${cls} ${x + width / 2} ${y + height / 2} ${width} ${height}`).join('\n');
@@ -290,6 +287,15 @@ function saveToDisk() {
         notifsQueue.value.push({ id: "save-disk-error", type: 'error', message: e.message, timeoutMS: 5000 })
     })
     cropModal.value?.close();
+}
+
+function updateField(f: PartialCocoField) {
+  const index = bboxes.value.findIndex(b => b.id === f.id);
+  if (index === -1) {
+    bboxes.value = [...bboxes.value, f];
+    return;
+  }
+  bboxes.value = bboxes.value.map((b, i) => (i === index ? f : b));
 }
 
 function onConfirmDeleteAnnotation(a: Annotation) {
