@@ -96,7 +96,7 @@ const reset = (e: MouseEvent) => {
   resizeDirection.value = null
 }
 
-const updateCrop = (bbox: BboxWithId) => {
+function scale(bbox:BboxWithId) {
   const offset = {
     top: imgElem.value?.offsetTop ?? 0,
     left: imgElem.value?.offsetLeft ?? 0
@@ -112,6 +112,10 @@ const updateCrop = (bbox: BboxWithId) => {
     height: bbox.height / imgHeight,
   }
 
+  return newBbox
+}
+const updateCrop = (bbox: BboxWithId) => {
+  const newBbox = scale(bbox)
   emit('updateCrop', newBbox)
   emit('focusBbox', newBbox.id)
 }
@@ -120,10 +124,10 @@ const onMouseDrag = (e: MouseEvent) => {
   if (!bboxCandidate.value || !imgElem.value) return
 
   if (mode.value === EditMode.create) {
-    const { x, y, ...rest } = bboxCandidate.value
-    const width = Math.abs(e.pageX - x)
-    const height = Math.abs(e.pageY - y)
-    updateCrop({ ...rest, x, y, width, height })
+    // const { x, y, ...rest } = bboxCandidate.value
+    // const width = Math.abs(e.pageX - x)
+    // const height = Math.abs(e.pageY - y)
+    // updateCrop({ ...rest, x, y, width, height })
   } else if (mode.value === EditMode.resize && clickStart.value && resizeDirection.value) {
     const deltaX = e.pageX - clickStart.value.x
     const deltaY = e.pageY - clickStart.value.y
@@ -156,16 +160,16 @@ const onMouseDrag = (e: MouseEvent) => {
 const onNewBbox = (e: MouseEvent) => {
   if (e.button !== 0 || mode.value !== EditMode.none) return
 
-  mode.value = EditMode.create
-  const x = e.pageX
-  const y = e.pageY
-
+  mode.value = EditMode.resize
+  const x = Math.abs(e.x - 15)
+  const y = Math.abs(e.y - 15)
   const id = crypto.randomUUID()
     .replace(/.*-/, 'newbbox-') as UUID;
 
-  const bbox = { x, y, width: 0.1, height: 0.1, id }
+  const bbox = { x, y, width: 30, height: 30, id } // this will be ratio'd/normalized during the updateCrop call
   clickStart.value = { x, y }
-  bboxCandidate.value = bbox
+  bboxCandidate.value = scale(bbox)
+  // emit('newCrop', bbox)
   updateCrop(bbox)
 }
 

@@ -7,10 +7,13 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    CropModal: typeof import('./src/components/dialogs/CropModal.vue')['default']
+    DeleteAnnotationDialog: typeof import('./src/components/dialogs/DeleteAnnotationDialog.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     MsAdd: typeof import('~icons/material-symbols/add')['default']
     MsClose: typeof import('~icons/material-symbols/close')['default']
     MsDelete: typeof import('~icons/material-symbols/delete')['default']
+    MsDownload: typeof import('~icons/material-symbols/download')['default']
     MsEdit: typeof import('~icons/material-symbols/edit')['default']
     MsSave: typeof import('~icons/material-symbols/save')['default']
     MsSettings: typeof import('~icons/material-symbols/settings')['default']
@@ -19,5 +22,6 @@ declare module 'vue' {
     ResizeHandle: typeof import('./src/components/ResizeHandle.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    UploadZoneModal: typeof import('./src/components/dialogs/UploadZoneModal.vue')['default']
   }
 }

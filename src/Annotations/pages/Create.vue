@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-row gap-4">
+  <div class="flex flex-row gap-4" @keydown="e => e.key === 'Delete' && activeField && deleteField(activeField.id)" tabindex="0">
     <div class="flex-1 flex justify-center">
       <CropComp :src :bboxes @new-crop="addField" @update-crop="emit('updateField', $event)"
         @focus-bbox="setActiveField" :highlighted-box-id="activeFieldId" />

@@ -20,6 +20,7 @@
     "@techstark/opencv-js": "^4.10.0-release.1",
     "@vueuse/core": "^12.7.0",
     "@vueuse/rxjs": "^12.7.0",
+    "@zip.js/zip.js": "^2.7.57",
     "dexie": "^4.0.11",
     "jimp": "^1.6.0",
     "onnxruntime-web": "^1.20.1",

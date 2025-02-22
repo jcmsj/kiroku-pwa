@@ -33,8 +33,11 @@
         </nav>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4" v-if="annotations?.length">
-            <div v-for="annotation in annotations" :key="annotation.label.name" class="card bg-base-100 shadow-sm">
-                <figure class="px-4 pt-4">
+            <div v-for="annotation in annotations" 
+                 :key="annotation.label.name" 
+                 class="card bg-base-100 shadow-sm"
+                 :class="{'ring-2 ring-primary': selectedAnnotations.has(annotation)}">
+                <figure class="px-4 pt-4" @click="toggleSelection(annotation)">
                     <img :src="annotation.url" :alt="annotation.image.name"
                         class="rounded-xl max-h-48 object-contain" />
                 </figure>
@@ -76,47 +79,37 @@
                 </div>
             </div>
         </div>
-        <dialog id="crop_modal" class="modal" ref="cropModal">
-            <div class="modal-box w-[100dvw] max-w-full h-[98dvh]">
-                <div class="text-lg">
-                    Image: {{ activeAnnotation?.image.name }}
-                </div>
-                <form method="dialog">
-                    <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-                </form>
-                <Create :src="activeAnnotation.url" v-if="activeAnnotation && cocoColors && classes" v-model:bboxes="bboxes" @update-field="updateField"
-                :classes :class-colors="cocoColors" 
-                    @save="saveToDisk" />
-            </div>
-        </dialog>
-        <dialog id="upload_zone" class="modal">
-            <div class="modal-box h-[80dvh] max-w-full">
-                <form method="dialog">
-                    <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-                </form>
-                <div class="h-full w-full">
-                    <UploadZone class="card-body" v-if="fs && project" :library :setKind="activeSet" :fs :project
-                        @refresh="setup" />
-                </div>
-            </div>
-        </dialog>
-
-        <dialog id="delete_annnotation_dialog" class="modal">
-            <div class="modal-box">
-                <h2>Confirm deletion</h2>
-                <p class="text-lg font-bold">Are you sure you want to delete this annotation ?</p>
-                <img :src="activeAnnotation?.url" alt="">
-                <div class="modal-action justify-end">
-                    <button class="btn btn-sm btn-error" @click="onConfirmDeleteAnnotation(activeAnnotation)">
-                        <ms-delete />
-                        Delete
-                    </button>
-                    <button class="btn btn-sm btn-primary" onclick="delete_annnotation_dialog.close()">
-                        Cancel
-                    </button>
-                </div>
-            </div>
-        </dialog>
+        
+        <CropModal 
+            id="crop_modal"
+            :active-annotation="activeAnnotation"
+            :class-colors="cocoColors"
+            :classes="classes" 
+            v-model:bboxes="bboxes"
+            ref="cropModal"
+            v-if="cocoColors && classes"
+            />
+            
+        <UploadZoneModal 
+            id="upload_zone"
+            :fs="fs"
+            :project="project"
+            :library="library"
+            :set-kind="activeSet"
+            @refresh="setup" />
+            
+        <DeleteAnnotationDialog 
+            id="delete_annnotation_dialog"
+            :annotation="activeAnnotation"
+            @confirm="onConfirmDeleteAnnotation"
+            @cancel="() => document.querySelector('#delete_annnotation_dialog')?.close()" />
+            
+        <AnnotationToolbar 
+            v-if="selectedAnnotations.size > 0"
+            :selected-count="selectedAnnotations.size"
+            @delete="deleteSelected"
+            @move-to-set="moveSelectedToSet"
+            @export="exportSelected" />
     </div>
 </template>
 
@@ -132,9 +125,12 @@ import { prepFS } from '../../fs/prepFS';
 import { asDir, asItem } from '../../fs/web';
 import { computedAsync } from '@vueuse/core';
 import type { CocoField, PartialCocoField, SetKind } from '../../types';
-import Create from '../../Annotations/pages/Create.vue';
-import UploadZone from '../../Annotations/UploadZone.vue';
 import { addNotif, notifsQueue } from '../../Composables/useNotifs';
+import AnnotationToolbar from '../../Annotations/AnnotationToolbar.vue';
+import CropModal from '../../components/dialogs/CropModal.vue';
+import UploadZoneModal from '../../components/dialogs/UploadZoneModal.vue';
+import DeleteAnnotationDialog from '../../components/dialogs/DeleteAnnotationDialog.vue';
+import * as zip from "@zip.js/zip.js";
 const route = useRoute('/projects/[id]');
 
 const project = useObservable(from(liveQuery(async () => {
@@ -265,7 +261,8 @@ async function loadAnnotation(a: Annotation) {
             bg: cocoColors.value![cls]
         }
     })
-    cropModal.value?.showModal();
+
+    document.querySelector('#crop_modal')?.showModal();
 }
 
 function createSetFolder(s: SetKind) {
@@ -317,5 +314,109 @@ function onConfirmDeleteAnnotation(a: Annotation) {
         timeoutMS: 5000
     })
     setup();
+}
+
+const selectedAnnotations = ref<Set<Annotation>>(new Set());
+
+function toggleSelection(annotation: Annotation) {
+  if (selectedAnnotations.value.has(annotation)) {
+    selectedAnnotations.value.delete(annotation);
+  } else {
+    selectedAnnotations.value.add(annotation);
+  }
+}
+
+async function deleteSelected() {
+  const confirmed = window.confirm(`Delete ${selectedAnnotations.value.size} annotations?`);
+  if (!confirmed) return;
+
+  for (const annotation of selectedAnnotations.value) {
+    await annotation.label.origin.remove();
+    await annotation.image.origin.remove();
+  }
+  
+  selectedAnnotations.value.clear();
+  addNotif({
+    id: 'delete-annotations-success',
+    type: 'success',
+    message: 'Annotations deleted successfully',
+    timeoutMS: 5000
+  });
+  setup();
+}
+
+async function moveSelectedToSet(targetSet: SetKind) {
+  const sourceLabelsDir = activeSetLabelsDir.value?.origin;
+  const sourceImagesDir = activeSetImagesDir.value?.origin;
+  const targetLabelsDir = await labelsDir.value?.origin.getDirectoryHandle(targetSet, { create: true });
+  const targetImagesDir = await imageDir.value?.origin.getDirectoryHandle(targetSet, { create: true });
+
+  if (!sourceLabelsDir || !sourceImagesDir || !targetLabelsDir || !targetImagesDir) {
+    throw new Error('Directory structure is invalid');
+  }
+
+  for (const annotation of selectedAnnotations.value) {
+    // Move files to new location
+    const newLabel = await targetLabelsDir.getFileHandle(annotation.label.name, { create: true });
+    const newImage = await targetImagesDir.getFileHandle(annotation.image.name, { create: true });
+    
+    const labelContent = await annotation.label.origin.getFile();
+    const imageContent = await annotation.image.origin.getFile();
+    
+    await (await newLabel.createWritable()).write(await labelContent.arrayBuffer());
+    await (await newImage.createWritable()).write(await imageContent.arrayBuffer());
+    
+    // Delete old files
+    await annotation.label.origin.remove();
+    await annotation.image.origin.remove();
+  }
+  
+  selectedAnnotations.value.clear();
+  addNotif({
+    id: 'move-annotations-success',
+    type: 'success',
+    message: `Moved annotations to ${targetSet} set`,
+    timeoutMS: 5000
+  });
+  setup();
+}
+
+async function exportSelected() {
+  const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
+  
+  // Create folders structure
+  await zipWriter.add(`${activeSet.value}/images/`, null);
+  await zipWriter.add(`${activeSet.value}/labels/`, null);
+  
+  // Add files to zip
+  for (const annotation of selectedAnnotations.value) {
+    const imageFile = await annotation.image.origin.getFile();
+    const labelFile = await annotation.label.origin.getFile();
+    
+    await zipWriter.add(
+      `${activeSet.value}/images/${annotation.image.name}`,
+      new zip.BlobReader(imageFile)
+    );
+    await zipWriter.add(
+      `${activeSet.value}/labels/${annotation.label.name}`,
+      new zip.BlobReader(labelFile)
+    );
+  }
+
+  // Close and download
+  const blob = await zipWriter.close();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${activeSet.value}-annotations.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  addNotif({
+    id: 'export-success',
+    type: 'success',
+    message: `Exported ${selectedAnnotations.value.size} annotations`,
+    timeoutMS: 5000
+  });
 }
 </script>
